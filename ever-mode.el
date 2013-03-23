@@ -3,7 +3,11 @@
   (define-key ever-mode-map (kbd "p") 'ever-goto-previous-note)
   (define-key ever-mode-map (kbd "s") 'ever-search-notes)
   (define-key ever-mode-map (kbd "q") 'ever-quit)
-  (define-key ever-mode-map (kbd "a") 'ever-add-note))
+  (define-key ever-mode-map (kbd "a") 'ever-add-note)
+  (define-key ever-mode-map (kbd "d") 'ever-mark-delete)
+  (define-key ever-mode-map (kbd "u") 'ever-unmark-delete)
+  (define-key ever-mode-map (kbd "x") 'ever-mark-execute)
+  )
 
 (defun ever-buffer-switch (buf)
   (if (string-match "ever" (buffer-name))
@@ -15,32 +19,16 @@
   (ever-buffer-switch "*ever-notes*")
   (with-current-buffer "*ever-notes*"
     (ever-mode)
-    (hl-line-mode))
-  (setq buffer-read-only nil)
-  (let* ((files (ever-notes-filter (directory-files ever-root-directroy t))) (lists (mapcar 'ever-file-to-list files)) (column-width (ever-get-column-width lists)))
-    files ; => ("/Users/Altech/Notes/Emacsメモツール.org" "/Users/Altech/Notes/Hive勉強会資料.md" "/Users/Altech/Notes/OAuthの仕組み.md" "/Users/Altech/Notes/Scalaまとめ.org" "/Users/Altech/Notes/test.md" "/Users/Altech/Notes/test.txt" "/Users/Altech/Notes/コンピュータプログラミングの概念・技法・モデル.org" "/Users/Altech/Notes/パターン認識の応用例.md" "/Users/Altech/Notes/ファイルシステム実装.md" "/Users/Altech/Notes/数理計画法.md" "/Users/Altech/Notes/旅行調査.md" "/Users/Altech/Notes/読書メーター代替.md")
-    lists ; => (("2013-03-19" "org" "Emacsメモツール") ("2013-02-09" "md" "Hive勉強会資料") ("2013-03-22" "md" "OAuthの仕組み") ("2013-03-22" "org" "Scalaまとめ") ("2013-03-22" "md" "test") ("2013-03-18" "txt" "test") ("2012-05-15" "org" "コンピュータプログラミングの概念・技法・モデル") ("2012-10-12" "md" "パターン認識の応用例") ("2013-02-14" "md" "ファイルシステム実装") ("2012-10-16" "md" "数理計画法") ("2013-01-30" "md" "旅行調査") ("2012-12-24" "md" "読書メーター代替"))
-    (setq lists (sort lists (lambda (l1 l2)
-			     (nth 0 l1) ; => "2013-03-22", "2013-03-22", "2013-02-09", "2013-03-18", "2013-03-22", "2013-03-18", "2013-03-22", "2013-03-22", "2013-03-18", "2013-03-18", "2013-03-18", "2013-02-14", "2013-02-14", "2012-10-12", "2012-12-24", "2013-01-30", "2012-12-24", "2013-01-30", "2013-01-30", "2012-12-24", "2012-10-16", "2013-02-14", "2013-02-14", "2013-02-14", "2013-02-14", "2013-02-14", "2013-02-14", "2013-01-30"
-			     (nth 0 l2) ; => "2013-02-09", "2013-03-19", "2013-03-19", "2013-03-22", "2013-03-22", "2013-03-22", "2013-03-22", "2013-03-22", "2013-03-22", "2013-03-19", "2013-02-09", "2012-10-12", "2012-05-15", "2012-05-15", "2013-01-30", "2012-10-16", "2012-10-16", "2013-02-14", "2012-10-12", "2012-10-12", "2012-10-12", "2013-03-22", "2013-03-22", "2013-03-22", "2013-03-19", "2013-03-18", "2013-02-09", "2013-02-09"
-			     (not (string< (nth 0 l1) (nth 0 l2)))
-			     )))
-    (setq lists (cons '("Updated-at" "Ext" "Title") lists))
-    (erase-buffer)
-    (insert "\n [n]: next-note [p]: previous-note [a]: add-note [s]: search [q]: quit \n\n")
-    (point) ; => 61
-    (insert (ever-set-faces-to-table (mapconcat (lambda (ls) (join ls "|")) (ever-make-table lists column-width) "\n"))) ; => nil
-    (insert "\n")
-  )
-  (setq buffer-read-only t)
-  ;; (setq grep-template "grep <X> <C> -nH -e <R> <F>")
+    (hl-line-mode)
+    (setq buffer-read-only t))
+  (setq ever-delete-mark-list nil)
+  (ever-render-file-list)
   (setq grep-find-template "find . <X> -type f <F> -exec grep <C> -nH -e <R> {} /dev/null \\;")
   (beginning-of-buffer)
   (goto-line 6)
   (ever-goto-previous-note)
   ;(put-text-property 1 10 'box (color-values "gray"))
   )
-
 
 (defvar ever-root-directroy nil
   "Directory which includes notes.")
@@ -79,12 +67,68 @@
   (dolist (path (ever-notes-filter (directory-files ever-root-directroy t)))
     (when (get-buffer (file-name-nondirectory path))
       (kill-buffer (file-name-nondirectory path)))
-    ))
+    )
+  (setq ever-delete-mark-list nil))
 
 (defun ever-add-note (title ext)
   (interactive "sTitle: \nsExtension: ")
   (with-current-buffer (pop-to-buffer nil)
-    (find-file (expand-file-name (concat title "." ext) ever-root-directroy))))
+    (find-file (expand-file-name (concat title "." ext) ever-root-directroy))
+    (insert "dummy")
+    (erase-buffer)
+    (save-buffer))
+  (ever-render-file-list))
+
+(defun ever-render-file-list ()
+  (with-current-buffer "*ever-notes*"
+    (ever-buffer-writable
+     (erase-buffer)
+     (let* ((files (ever-notes-filter (directory-files ever-root-directroy t))) (lists (mapcar 'ever-file-to-list files)) (column-width (ever-get-column-width lists)))
+       files ; => ("/Users/Altech/Notes/Emacsメモツール.org" "/Users/Altech/Notes/Hive勉強会資料.md" "/Users/Altech/Notes/OAuthの仕組み.md" "/Users/Altech/Notes/Scalaまとめ.org" "/Users/Altech/Notes/test.md" "/Users/Altech/Notes/test.txt" "/Users/Altech/Notes/コンピュータプログラミングの概念・技法・モデル.org" "/Users/Altech/Notes/パターン認識の応用例.md" "/Users/Altech/Notes/ファイルシステム実装.md" "/Users/Altech/Notes/数理計画法.md" "/Users/Altech/Notes/旅行調査.md" "/Users/Altech/Notes/読書メーター代替.md")
+       lists ; => (("2013-03-19" "org" "Emacsメモツール") ("2013-02-09" "md" "Hive勉強会資料") ("2013-03-22" "md" "OAuthの仕組み") ("2013-03-22" "org" "Scalaまとめ") ("2013-03-22" "md" "test") ("2013-03-18" "txt" "test") ("2012-05-15" "org" "コンピュータプログラミングの概念・技法・モデル") ("2012-10-12" "md" "パターン認識の応用例") ("2013-02-14" "md" "ファイルシステム実装") ("2012-10-16" "md" "数理計画法") ("2013-01-30" "md" "旅行調査") ("2012-12-24" "md" "読書メーター代替"))
+       (setq lists (sort lists (lambda (l1 l2)
+				 (nth 0 l1) ; => "2013-03-22", "2013-03-22", "2013-02-09", "2013-03-18", "2013-03-22", "2013-03-18", "2013-03-22", "2013-03-22", "2013-03-18", "2013-03-18", "2013-03-18", "2013-02-14", "2013-02-14", "2012-10-12", "2012-12-24", "2013-01-30", "2012-12-24", "2013-01-30", "2013-01-30", "2012-12-24", "2012-10-16", "2013-02-14", "2013-02-14", "2013-02-14", "2013-02-14", "2013-02-14", "2013-02-14", "2013-01-30"
+				 (nth 0 l2) ; => "2013-02-09", "2013-03-19", "2013-03-19", "2013-03-22", "2013-03-22", "2013-03-22", "2013-03-22", "2013-03-22", "2013-03-22", "2013-03-19", "2013-02-09", "2012-10-12", "2012-05-15", "2012-05-15", "2013-01-30", "2012-10-16", "2012-10-16", "2013-02-14", "2012-10-12", "2012-10-12", "2012-10-12", "2013-03-22", "2013-03-22", "2013-03-22", "2013-03-19", "2013-03-18", "2013-02-09", "2013-02-09"
+				 (not (string< (nth 0 l1) (nth 0 l2)))
+				 )))
+       (setq lists (cons '("Updated-at" "Ext" "Title") lists))
+       (erase-buffer)
+       (insert "\n [n]: next-note [p]: previous-note [a]: add-note [s]: search [q]: quit \n\n")
+       (point) ; => 75
+       (insert (ever-set-faces-to-table (mapconcat (lambda (ls) (join ls "|")) (ever-make-table lists column-width) "\n"))) ; => nil
+       (insert "\n")))))
+
+
+(defvar ever-delete-mark-list nil
+  "Marking list in ever-notes. It is a list of filename.")
+
+(defun ever-mark-delete ()
+  (interactive)
+  (ever-buffer-writable
+   (beginning-of-line)
+   (unless (string= (buffer-substring (point) (1+ (point))) "D")
+     (let ((s (thing-at-point 'line)))
+       (when (string-match "^ \\([^| ]+\\) +| \\([^| ]+\\) +| \\([^| ]+\\) +$" s)
+	 (setq ever-delete-mark-list (cons (concat (match-string 3 s) "." (match-string 2 s)) ever-delete-mark-list)))
+       (delete-char 1) (insert "D")))
+   (beginning-of-line)))
+
+(defun ever-unmark-delete ()
+  (interactive)
+  (ever-buffer-writable
+   (beginning-of-line)
+   (if (string= (buffer-substring (point) (1+ (point))) "D")
+     (let ((s (thing-at-point 'line)))
+       (when (string-match "^D\\([^| ]+\\) +| \\([^| ]+\\) +| \\([^| ]+\\) +$" s)
+	 (setq ever-delete-mark-list (remove (concat (match-string 3 s) "." (match-string 2 s)) ever-delete-mark-list)))
+       (delete-char 1) (insert " "))))
+  (beginning-of-line))
+
+(defun ever-mark-execute ()
+  (interactive)
+  (dolist (file ever-delete-mark-list)
+    (delete-file (expand-file-name file ever-root-directroy)))
+  (ever-render-file-list))
 
 (defun ever-notes-filter (list)
   (filter (lambda (s) (not (string-match "^\\..*" (file-name-nondirectory s)))) list)
@@ -114,6 +158,13 @@
   (let ((list (split-string lines "\n")))
     (join (cons (propertize (concat (car list) "  ") 'face 'underline) (cdr list)) "\n"))
   )
+
+(defmacro ever-buffer-writable (&rest body)
+  `(if (not buffer-read-only)
+       (progn ,@body)
+     (setq buffer-read-only nil)
+     (progn ,@body)
+     (setq buffer-read-only t)))
 
 ;; general-purpose routines
 
@@ -159,7 +210,7 @@
 (setq ever-root-directroy "/Users/Altech/Notes")
 
 
-;; start ever-mode
+;; ;; start ever-mode
 ;; (ever-notes)
 
 
@@ -170,5 +221,4 @@
 ;; - improve search result 
 ;; - tag
 ;; - improve face
-;; - mark-and-delete
-;; - reflesh file list
+;; - help mode
