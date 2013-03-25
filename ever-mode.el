@@ -7,6 +7,7 @@
   (define-key ever-mode-map (kbd "d") 'ever-mark-delete)
   (define-key ever-mode-map (kbd "u") 'ever-unmark-delete)
   (define-key ever-mode-map (kbd "x") 'ever-mark-execute)
+  (define-key ever-mode-map (kbd "r") 'ever-rename-file)
   )
 
 (defun ever-buffer-switch (buf)
@@ -123,6 +124,17 @@
     (delete-file (expand-file-name file ever-root-directroy)))
   (ever-render-file-list))
 
+(defun ever-rename-file (title ext)
+  (interactive "sTitle: \nsExtension: ")
+  (when (string-match "^.\\([^| ]+\\) +| \\([^| ]+\\) +| \\([^| ]+\\) +$" (thing-at-point 'line))
+    (let* ((line (thing-at-point 'line)) (old-update-date (match-string 1 line)) (old-ext (match-string 2 line)) (old-title (match-string 3 line)))
+       (message "old:%s\n" (expand-file-name (concat old-title "." old-ext) ever-root-directroy)) ; => 
+       (message "new:%s\n" (expand-file-name (concat title "." ext) ever-root-directroy)) ; => 
+      (rename-file (expand-file-name (concat old-title "." old-ext) ever-root-directroy) (expand-file-name (concat title "." ext) ever-root-directroy)))
+    (ever-render-file-list)
+    ))
+
+
 (defun ever-notes-filter (list)
   (filter (lambda (s) (not (string-match "^\\..*" (file-name-nondirectory s)))) list))
 
@@ -166,8 +178,8 @@
 (provide 'ever-mode)
 
 
-;; ;; start ever-mode
-;; (ever-notes)
+;; start ever-mode
+(ever-notes)
 
 
 
@@ -178,3 +190,4 @@
 ;; - tag
 ;; - improve face
 ;; - help mode
+;; - managements cursor
