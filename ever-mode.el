@@ -71,12 +71,14 @@
 
 (defun ever-add-note (title ext)
   (interactive "sTitle: \nsExtension: ")
-  (with-current-buffer (pop-to-buffer nil)
-    (find-file (expand-file-name (concat title "." ext) ever-root-directroy))
-    (insert "dummy")
-    (erase-buffer)
-    (save-buffer))
-  (ever-render-file-list))
+  (if (file-exists-p (expand-file-name (concat title "." ext) ever-root-directroy))
+      (message "File already exists.")
+    (with-current-buffer (pop-to-buffer nil)
+      (find-file (expand-file-name (concat title "." ext) ever-root-directroy))
+      (insert "dummy")
+      (erase-buffer)
+      (save-buffer))
+    (ever-render-file-list)))
 
 (defun ever-render-file-list ()
   (with-current-buffer "*ever-notes*"
@@ -90,8 +92,6 @@
        (insert "\n")
        (insert (ever-set-faces-to-table (mapconcat (lambda (ls) (join ls "|")) (ever-make-table lists column-width) "\n")))
        (insert "\n\n\n [n]: next-note [p]: previous-note [a]: add-note [s]: search [q]: quit \n\n [d]: mark-delete [u]: unmark [x]: execute-mark\n")))))
-
-
 
 (defvar ever-delete-mark-list nil
   "Marking list in ever-notes. It is a list of filename.")
