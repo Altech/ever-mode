@@ -1,72 +1,72 @@
-(define-derived-mode ever-mode nil "EverMode" "Managements many notes."
-  (define-key ever-mode-map (kbd "n") 'ever-goto-next-note)
-  (define-key ever-mode-map (kbd "p") 'ever-goto-previous-note)
-  (define-key ever-mode-map (kbd "s") 'ever-search-notes)
-  (define-key ever-mode-map (kbd "q") 'ever-quit)
-  (define-key ever-mode-map (kbd "a") 'ever-add-note)
-  (define-key ever-mode-map (kbd "d") 'ever-mark-delete)
-  (define-key ever-mode-map (kbd "u") 'ever-unmark-delete)
-  (define-key ever-mode-map (kbd "x") 'ever-mark-execute)
-  (define-key ever-mode-map (kbd "r") 'ever-rename-note)
+;; define
+(define-derived-mode ever-mode nil "EverMode" "Managements many notes.")
+
+;; interface
+(let ((map ever-mode-map))
+  (define-key map (kbd "t") 'ever-toggle-view)
+  (define-key map (kbd "n") 'ever-goto-next-note)
+  (define-key map (kbd "p") 'ever-goto-previous-note)
+  (define-key map (kbd "s") 'ever-search-notes)
+  (define-key map (kbd "a") 'ever-add-note)
+  (define-key map (kbd "r") 'ever-rename-note)
+  (define-key map (kbd "d") 'ever-mark-delete)
+  (define-key map (kbd "u") 'ever-unmark-delete)
+  (define-key map (kbd "x") 'ever-mark-execute)
+  (define-key map (kbd "q") 'ever-quit)
   )
 
-(defun ever-buffer-switch (buf)
-  (if (string-match "ever" (buffer-name))
-      (switch-to-buffer buf)
-    (pop-to-buffer buf)))
+(defconst ever-view-type-list '(ever-view-type-table
+				ever-view-type-summary))
 
-(defun ever-notes ()
-  (interactive)
-  (ever-buffer-switch "*ever-notes*")
-  (with-current-buffer "*ever-notes*"
-    (ever-mode)
-    (hl-line-mode)
-    (setq buffer-read-only t))
-  (setq ever-delete-mark-list nil)
-  (ever-render-file-list)
-  (setq grep-find-template "find . <X> -type f <F> -exec grep <C> -nH -e <R> {} /dev/null \\;")
-  (goto-char (point-min))
-  (goto-line 3)
-  (ever-goto-previous-note)
-  ;(put-text-property 1 10 'box (color-values "gray"))
-  )
-
+;; variables
 (defvar ever-root-directroy nil
   "Directory which includes notes.")
 
+(defvar ever-view-type 0)
+
+;; varibales(state)
+(defvar ever-delete-mark-list nil
+  "Marking list in ever-notes. It is a list of filename.")
+
+;; interactive command
+(defun ever-notes ()
+  (interactive)
+  (unless (get-buffer "*ever-notes*")
+    (with-current-buffer (generate-new-buffer "*ever-notes*")
+      (ever-mode)
+      (hl-line-mode)
+      (setq buffer-read-only t)))
+  (ever-notes-init-state)
+  (ever-render-view)
+  (other-window-or-split) ; patch
+  (switch-to-buffer "*ever-notes*")
+  (goto-char (point-min))
+  (goto-line 2)
+  (ever-goto-next-note)
+  ;; open-recent
+  )
+
 (defun ever-goto-next-note ()
   (interactive)
-  (when (re-search-forward "^\\([^|]+\\)|\\([^|]+\\)|\\([^|]+\\)\n\\([^|]+\\)|" nil t)
-    (beginning-of-line)
-    (ever-pop-buffer-of-line (thing-at-point 'line))
+  (when (ever-exist-next-note)
+    (next-line)
+    (ever-pop-buffer-of-current-note)
     (pop-to-buffer "*ever-notes*")))
 
 (defun ever-goto-previous-note ()
   (interactive)
-  (when (re-search-backward "|\\([^|]+\\)\n\\([^|]+\\)|\\([^|]+\\)|\\([^|]+\\)\n" nil t)
-    (end-of-line) (goto-char (1+ (point)))
-    (ever-pop-buffer-of-line (thing-at-point 'line))
+  (when (ever-exist-previous-note)
+    (previous-line)
+    (ever-pop-buffer-of-current-note)
     (pop-to-buffer "*ever-notes*")))
-
-(defun ever-pop-buffer-of-line (s)
-  (when (string-match "^ \\([^| ]+\\) +| \\([^| ]+\\) +| \\([^| ]+\\) +$" s)
-    (let ((file (concat (match-string 3 s) "." (match-string 2 s))))
-      (with-current-buffer (pop-to-buffer nil)
-	(condition-case err
-	  (find-file (expand-file-name file ever-root-directroy))
-	(error (insert "Warning: File not found.")))))))
-
-(defun ever-search-notes (regexp)
-  (interactive "sSearch: ")
-  (rgrep regexp "*" ever-root-directroy nil))
 
 (defun ever-quit ()
   (interactive)
   (kill-buffer "*ever-notes*")  
-  (dolist (path (ever-notes-filter (directory-files ever-root-directroy t)))
+  (dolist (path (ever-get-note-filter (directory-files ever-root-directroy t)))
     (when (get-buffer (file-name-nondirectory path))
       (kill-buffer (file-name-nondirectory path))))
-  (delete-window (other-window 1))
+  (delete-window (other-window 0))
   (setq ever-delete-mark-list nil))
 
 (defun ever-add-note (title ext)
@@ -78,91 +78,165 @@
       (insert "dummy")
       (erase-buffer)
       (save-buffer))
-    (ever-render-file-list)))
+    (ever-render-view)
+    (goto-line 3)))
 
-(defun ever-render-file-list ()
-  (with-current-buffer "*ever-notes*"
-    (ever-buffer-writable
-     (erase-buffer)
-     (let* ((files (ever-notes-filter (directory-files ever-root-directroy t))) (lists (mapcar 'ever-file-to-list files)) (column-width (ever-get-column-width lists)))
-       (setq lists (sort lists (lambda (l1 l2)
-				 (not (string< (nth 0 l1) (nth 0 l2))))))
-       (setq lists (cons '("Updated-at" "Ext" "Title") lists))
-       (erase-buffer)
-       (insert "\n")
-       (insert (ever-set-faces-to-table (mapconcat (lambda (ls) (join ls "|")) (ever-make-table lists column-width) "\n")))
-       (insert "\n\n\n [n]: next-note [p]: previous-note [a]: add-note [s]: search [q]: quit \n\n [r]: rename-note [d]: mark-delete [u]: unmark [x]: execute-mark\n")))))
-
-(defvar ever-delete-mark-list nil
-  "Marking list in ever-notes. It is a list of filename.")
+(defun ever-rename-note (title ext)
+  (interactive "sTitle: \nsExtension: ")
+  (let ((note (ever-parse-note)) (line (line-number-at-pos (point))))
+	(when note
+	  (if (get-buffer  (concat (cdr (assq 'title note)) "." (cdr (assq 'ext note))))
+	      (kill-buffer (concat (cdr (assq 'title note)) "." (cdr (assq 'ext note)))))
+	  (rename-file (expand-file-name (concat (cdr (assq 'title note)) "." (cdr (assq 'ext note))) ever-root-directroy) (expand-file-name (concat title "." ext) ever-root-directroy))
+	  (ever-render-view)
+	  (goto-line line)
+	  )))
 
 (defun ever-mark-delete ()
   (interactive)
-  (ever-buffer-writable
-   (beginning-of-line)
-   (unless (eq (char-after) ?D)
-     (let ((s (thing-at-point 'line)))
-       (when (string-match "^ \\([^| ]+\\) +| \\([^| ]+\\) +| \\([^| ]+\\) +$" s)
-	 (setq ever-delete-mark-list (cons (concat (match-string 3 s) "." (match-string 2 s)) ever-delete-mark-list)))
-       (delete-char 1) (insert "D")))
-   (beginning-of-line)))
+  (with-ever-notes
+   (let ((note (ever-parse-note)))
+     (unless (string-equal "D" (cdr (assq 'mark note)))
+       (add-to-list 'ever-delete-mark-list (concat (cdr (assq 'title note)) "." (cdr (assq 'ext note))))
+       (delete-char 1) (insert "D"))
+     (beginning-of-line))))
 
 (defun ever-unmark-delete ()
   (interactive)
-  (ever-buffer-writable
-   (beginning-of-line)
-   (if (eq (char-after) ?D)
-     (let ((s (thing-at-point 'line)))
-       (when (string-match "^D\\([^| ]+\\) +| \\([^| ]+\\) +| \\([^| ]+\\) +$" s)
-	 (setq ever-delete-mark-list (remove (concat (match-string 3 s) "." (match-string 2 s)) ever-delete-mark-list)))
-       (delete-char 1) (insert " "))))
-  (beginning-of-line))
+  (with-ever-notes
+   (let ((note (ever-parse-note)))
+     (when (string-equal "D" (cdr (assq 'mark note)))
+       (setq ever-delete-mark-list (remove (concat (cdr (assq 'title note)) "." (cdr (assq 'ext note))) ever-delete-mark-list))
+       (delete-char 1) (insert " "))
+     (beginning-of-line))))
 
 (defun ever-mark-execute ()
   (interactive)
   (dolist (file ever-delete-mark-list)
     (delete-file (expand-file-name file ever-root-directroy)))
-  (ever-render-file-list))
+  (ever-render-view)
+  (goto-line 3))
 
-(defun ever-rename-note (title ext)
-  (interactive "sTitle: \nsExtension: ")
-  (when (string-match "^.\\([^| ]+\\) +| \\([^| ]+\\) +| \\([^| ]+\\) +$" (thing-at-point 'line))
-    (let* ((line (thing-at-point 'line)) (old-update-date (match-string 1 line)) (old-ext (match-string 2 line)) (old-title (match-string 3 line)))
-      (ever-rename-note (expand-file-name (concat old-title "." old-ext) ever-root-directroy) (expand-file-name (concat title "." ext) ever-root-directroy)))
-    (ever-render-file-list)))
+(defun ever-search-notes (regexp)
+  (interactive "sSearch: ")
+  (rgrep regexp "*" ever-root-directroy nil))
 
-(defun ever-notes-filter (list)
-  (filter (lambda (s) (not (string-match "^\\..*" (file-name-nondirectory s)))) list))
+;; non interactive
+(defun ever-notes-init-state ()
+  (setq ever-delete-mark-list nil)
+  (setq grep-find-template "find . <X> -type f <F> -exec grep <C> -nH -e <R> {} /dev/null \\;") ;; patch
+  )
 
-(defun ever-file-to-list (file)
-  (let* ((attrs (file-attributes file)) (mtime (nth 5 attrs)))
-    ;attrs ; => (nil 1 501 20 (20811 62349) (20811 13373) (20811 13373) 10128 "-rw-r--r--" nil 13741330 16777217), (nil 1 501 20 (20811 62347) (20811 13242) (20811 13242) 14321 "-rw-r--r--" nil 13741227 16777217), (nil 1 501 20 (20811 62351) (20807 28495) (20807 28495) 16 "-rw-r--r--" nil 13435475 16777217), (nil 1 501 20 (20811 62351) (20807 9536) (20807 13024) 12 "-rw-r--r--" nil 13392020 16777217), (nil 1 501 20 (20811 62351) (20807 28413) (20807 28413) 1551 "-rw-r--r--" nil 13417785 16777217)
-    (list (format-time-string "%Y-%m-%d" mtime) (file-name-extension file) (file-name-nondirectory (file-name-sans-extension file)))))
+(defun ever-render-view ()
+  (nth ever-view-type ever-view-type-list) ; => ever-view-type-table
+  (with-ever-notes
+   (erase-buffer)
+   (insert "\n")
+   (insert (funcall (nth ever-view-type ever-view-type-list)))
+   (insert "\n\n\n [n]: next-note [p]: previous-note [a]: add-note [s]: search [q]: quit \n\n [r]: rename-note [d]: mark-delete [u]: unmark [x]: execute-mark\n")))
 
-(defun ever-file-to-summary (file))
+(defun ever-pop-buffer-of-current-note ()
+  (let ((note (ever-parse-note)))
+    (with-current-buffer (pop-to-buffer nil)
+	(condition-case err
+	  (find-file (expand-file-name (cdr (assq 'path note)) ever-root-directroy))
+	(error (insert "Warning: File not found."))))))
 
-;; routines
-(defun ever-get-column-width (tables)
+(defun ever-view-type-table ()
+  (let ((notes (ever-sort-note-list (ever-get-note-list))))
+    notes ; => (((category) (title . "ekmett") (ext . "org") (updated . "2013-04-01") (created . "2013-04-01") (path . "/Users/Altech/Notes/ekmett.org")) ((category) (title . "何でもリスト") (ext . "org") (updated . "2013-03-27") (created . "nil-nil-nil") (path . "/Users/Altech/Notes/何でもリスト.org")) ((category) (title . "プログラミングを行なう人") (ext . "org") (updated . "2013-03-27") (created . "nil-nil-nil") (path . "/Users/Altech/Notes/プログラミングを行なう人.org")) ((category) (title . "Emacsメモツール") (ext . "org") (updated . "2013-03-26") (created . "2013-03-26") (path . "/Users/Altech/Notes/Emacsメモツール.org")) ((category) (title . "test") (ext . "md") (updated . "2013-03-22") (created . "2013-03-22") (path . "/Users/Altech/Notes/test.md")) ((category) (title . "Scalaまとめ") (ext . "org") (updated . "2013-03-22") (created . "2013-03-22") (path . "/Users/Altech/Notes/Scalaまとめ.org")) ((category) (title . "OAuthの仕組み") (ext . "md") (updated . "2013-03-22") (created . "2013-03-22") (path . "/Users/Altech/Notes/OAuthの仕組み.md")) ((category) (title . "ファイルシステム実装") (ext . "md") (updated . "2013-02-14") (created . "2013-02-14") (path . "/Users/Altech/Notes/ファイルシステム実装.md")) ((category) (title . "Hive勉強会資料") (ext . "md") (updated . "2013-02-09") (created . "2013-02-09") (path . "/Users/Altech/Notes/Hive勉強会資料.md")) ((category) (title . "旅行調査") (ext . "md") (updated . "2013-01-30") (created . "2013-01-30") (path . "/Users/Altech/Notes/旅行調査.md")) ((category) (title . "読書メーター代替") (ext . "md") (updated . "2012-12-24") (created . "2012-12-24") (path . "/Users/Altech/Notes/読書メーター代替.md")) ((category) (title . "数理計画法") (ext . "md") (updated . "2012-10-16") (created . "2012-10-16") (path . "/Users/Altech/Notes/数理計画法.md")) ((category) (title . "パターン認識の応用例") (ext . "md") (updated . "2012-10-12") (created . "nil-nil-nil") (path . "/Users/Altech/Notes/パターン認識の応用例.md")) ((category) (title . "コンピュータプログラミングの概念・技法・モデル") (ext . "org") (updated . "2012-05-15") (created . "nil-nil-nil") (path . "/Users/Altech/Notes/コンピュータプログラミングの概念・技法・モデル.org")))
+    (let* ((table (mapcar (lambda (notes) (mapcar 'cdr (list (assq 'updated notes) (assq 'ext notes) (assq 'title notes)))) notes)) (column-width (ever-calc-column-width table)))
+      table ; => (("2013-04-01" "org" "ekmett") ("2013-03-27" "org" "何でもリスト") ("2013-03-27" "org" "プログラミングを行なう人") ("2013-03-26" "org" "Emacsメモツール") ("2013-03-22" "md" "test") ("2013-03-22" "org" "Scalaまとめ") ("2013-03-22" "md" "OAuthの仕組み") ("2013-02-14" "md" "ファイルシステム実装") ("2013-02-09" "md" "Hive勉強会資料") ("2013-01-30" "md" "旅行調査") ("2012-12-24" "md" "読書メーター代替") ("2012-10-16" "md" "数理計画法") ("2012-10-12" "md" "パターン認識の応用例") ("2012-05-15" "org" "コンピュータプログラミングの概念・技法・モデル"))
+      (setq table (cons '("Updated-at" "Ext" "Title") table))
+      (let ((indented-table (mapcar (lambda (list)
+				      (mapcar (lambda (cell)
+						(ever-recenter-string (car cell) (cdr cell)))
+					      (zip list column-width)))
+				    table)))
+	(ever-add-faces-to-table (mapconcat (lambda (ls) (join ls "|")) indented-table "\n"))
+	) ; => 	" Updated-at | Ext | Title                                \n	 2013-04-01 | org | ekmett                              \n	  2013-03-27 | org | 何でもリスト                          \n	   2013-03-27 | org | プログラミングを行なう人                  \n	    2013-03-26 | org | Emacsメモツール                       \n	     2013-03-22 | md  | test                                \n	      2013-03-22 | org | Scalaまとめ                          \n	       2013-03-22 | md  | OAuthの仕組み                        \n	        2013-02-14 | md  | ファイルシステム実装                    \n		 2013-02-09 | md  | Hive勉強会資料                        \n		  2013-01-30 | md  | 旅行調査                              \n		   2012-12-24 | md  | 読書メーター代替                        \n		    2012-10-16 | md  | 数理計画法                            \n		     2012-10-12 | md  | パターン認識の応用例                    \n		      2012-05-15 | org | コンピュータプログラミングの概念・技法・モデル "
+      )))
+
+(defun ever-get-note-list ()
+  ;; return list of notes
+  ;; note is alist. the key of the alist is (category title ext updated created path).
+  (let ((paths (ever-get-all-path-of-note)))
+    paths ; => ("/Users/Altech/Notes/Emacsメモツール.org" "/Users/Altech/Notes/Hive勉強会資料.md" "/Users/Altech/Notes/OAuthの仕組み.md" "/Users/Altech/Notes/Scalaまとめ.org" "/Users/Altech/Notes/ekmett.org" "/Users/Altech/Notes/test.md" "/Users/Altech/Notes/コンピュータプログラミングの概念・技法・モデル.org" "/Users/Altech/Notes/パターン認識の応用例.md" "/Users/Altech/Notes/ファイルシステム実装.md" "/Users/Altech/Notes/プログラミングを行なう人.org" "/Users/Altech/Notes/何でもリスト.org" "/Users/Altech/Notes/数理計画法.md" "/Users/Altech/Notes/旅行調査.md" "/Users/Altech/Notes/読書メーター代替.md")
+    (mapcar (lambda (path)
+	      (let ((fi (shell-command-to-string (concat "/usr/bin/GetFileInfo -d " path))) (mtime (nth 5  (file-attributes path))) (ext (file-name-extension path)) (title (file-name-nondirectory (file-name-sans-extension path))))
+		(string-match "\\([0-9][0-9]\\)/\\([0-9][0-9]\\)/\\([0-9][0-9][0-9][0-9]\\)" fi) ; => 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65
+		(list
+		 (cons 'category nil)
+		 (cons 'title (file-name-nondirectory (file-name-sans-extension path)))
+		 (cons 'ext (file-name-extension path))
+		 (cons 'updated (format-time-string "%Y-%m-%d" (nth 5 (file-attributes path))))
+		 (cons 'created (format "%s-%s-%s" (match-string 3 fi) (match-string 1 fi) (match-string 2 fi))) ; => (created . "2013-03-26"), (created . "2013-02-09"), (created . "2013-03-22"), (created . "2013-03-22"), (created . "2013-04-01"), (created . "2013-03-22"), (created . "nil-nil-nil"), (created . "nil-nil-nil"), (created . "2013-02-14"), (created . "nil-nil-nil"), (created . "nil-nil-nil"), (created . "2012-10-16"), (created . "2013-01-30"), (created . "2012-12-24")
+		 (cons 'path path))
+		))
+	    paths)))
+
+(defun ever-sort-note-list (notes)
+  (sort notes (lambda (n1 n2)
+		(not (string< (cdr (assq 'updated n1)) (cdr (assq 'updated n2)))))))
+
+(defun ever-get-note-filter (list)
+  (filter (lambda (s) (not (string-match "^[\\.#].*" (file-name-nondirectory s)))) list))
+
+(defun ever-get-all-path-of-note ()
+  "example: return (test.md work/memo.org ...)"
+  ;; [TODO] deal with nest directory
+  (directory-files ever-root-directroy t) ; => ("/Users/Altech/Notes/#test.ap#" "/Users/Altech/Notes/#test.pp#" "/Users/Altech/Notes/#tet.md#" "/Users/Altech/Notes/." "/Users/Altech/Notes/.#tet.md" "/Users/Altech/Notes/.." "/Users/Altech/Notes/.DS_Store" "/Users/Altech/Notes/Emacsメモツール.org" "/Users/Altech/Notes/Hive勉強会資料.md" "/Users/Altech/Notes/OAuthの仕組み.md" "/Users/Altech/Notes/Scalaまとめ.org" "/Users/Altech/Notes/ekmett.org" "/Users/Altech/Notes/test.md" "/Users/Altech/Notes/コンピュータプログラミングの概念・技法・モデル.org" "/Users/Altech/Notes/パターン認識の応用例.md" "/Users/Altech/Notes/ファイルシステム実装.md" "/Users/Altech/Notes/プログラミングを行なう人.org" "/Users/Altech/Notes/何でもリスト.org" "/Users/Altech/Notes/数理計画法.md" "/Users/Altech/Notes/旅行調査.md" "/Users/Altech/Notes/読書メーター代替.md")
+  (ever-get-note-filter (directory-files ever-root-directroy t)))
+
+(defun ever-calc-column-width (tables)
   (mapcar (lambda (list) (apply 'max (mapcar 'calc-string-width list))) (transpose tables)))
 
-
-(defun ever-make-table (lists column-width)
-  (mapcar (lambda (list)
-	    (mapcar (lambda (cell)
-		      (ever-recenter-string (car cell) (cdr cell)))
-		    (zip list column-width)))
-	  lists))
-
-(defun ever-set-faces-to-table (lines)
-  (let ((list (split-string lines "\n")))
+(defun ever-add-faces-to-table (table-str)
+  (let ((list (split-string table-str "\n")))
     (join (cons (propertize (concat (car list) "  ") 'face 'underline) (cdr list)) "\n")))
 
-(defmacro ever-buffer-writable (&rest body)
-  `(if (not buffer-read-only)
+(defun ever-exist-next-note ()
+  (cond ((eq ever-view-type 0)
+	 (next-line)
+	 (let ((result (ever-parse-note)))
+	   (previous-line)
+	   result
+	   ))
+	((eq ever-view-type 1)
+	 (error "unimplemented view-type.")
+	 )
+	(t (error "unexpected value ever-view-type"))))
+
+(defun ever-exist-previous-note ()
+  (cond ((eq ever-view-type 0)
+	 (previous-line)
+	 (let ((result (ever-parse-note)))
+	   (next-line)
+	   result
+	   ))
+	((eq ever-view-type 1)
+	 (error "unimplemented view-type.")
+	 )
+	(t (error "unexpected value ever-view-type"))))
+
+(defun ever-parse-note ()
+  (cond ((eq ever-view-type 0)
+	 (let ((str (thing-at-point 'line)))
+	   (if (or (not (string-match "^\\([ D]\\)\\([^| ]+\\) +| +\\([^| ]+\\) +| \\([^|\n ]+\\) +" str)) (string-match " Ext " str))
+	       nil
+	     (zip (list 'category 'title 'ext 'updated 'created 'path 'mark)
+		  (list nil (match-string 4 str) (match-string 3 str) (match-string 2 str) nil (format "%s.%s" (match-string 4 str) (match-string 3 str)) (match-string 1 str))))))
+	((eq ever-view-type 1)
+	 t
+	 )))
+
+(defmacro with-ever-notes (&rest body)
+  `(with-current-buffer "*ever-notes*"
+     (if (not buffer-read-only)
+	 (progn ,@body)
+       (setq buffer-read-only nil)
        (progn ,@body)
-     (setq buffer-read-only nil)
-     (progn ,@body)
-     (setq buffer-read-only t)))
+       (setq buffer-read-only t))))
 
 
 ;; general-purpose routines
@@ -173,23 +247,19 @@
 
 (provide 'ever-mode)
 
-
 ;; ;; start ever-mode
 ;; (ever-notes)
 
 
 
 ;; [TODO]
-;; - split file (setting and debug-mode and boyd
+;; - category using folder
+;; - tag on filename
 ;; - spotlight search
 ;; - improve search result 
-;; - tag
 ;; - improve face
-;; - help mode
 ;; - abstract mode
 ;; - managements cursor
 ;; - create-date using GetFileInfo
 ;; - sort create-date / update-date
 ;; - search by title
-;; - category by folder
-;; - change modify and create date
