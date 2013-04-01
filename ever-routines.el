@@ -29,6 +29,12 @@
    ((null list2) nil) 
    (t (cons (cons (car list1) (car list2)) (zip (cdr list1) (cdr list2))))))
 
+(defun other-window-or-split ()
+  (interactive)
+  (when (one-window-p)
+    (split-window-horizontally))
+  (other-window 1))
+
 ;; [TEST]
 ;; (zip '(1 2 5) '(3 4 5)) ; => ((1 . 3) (2 . 4) (5 . 5))
 ;; (ever-recenter-string "test" 10) ; => " test       "

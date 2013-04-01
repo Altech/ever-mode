@@ -128,7 +128,7 @@
   )
 
 (defun ever-render-view ()
-  (nth ever-view-type ever-view-type-list) ; => ever-view-type-table
+  (nth ever-view-type ever-view-type-list)
   (with-ever-notes
    (erase-buffer)
    (insert "\n")
@@ -144,33 +144,30 @@
 
 (defun ever-view-type-table ()
   (let ((notes (ever-sort-note-list (ever-get-note-list))))
-    notes ; => (((category) (title . "ekmett") (ext . "org") (updated . "2013-04-01") (created . "2013-04-01") (path . "/Users/Altech/Notes/ekmett.org")) ((category) (title . "何でもリスト") (ext . "org") (updated . "2013-03-27") (created . "nil-nil-nil") (path . "/Users/Altech/Notes/何でもリスト.org")) ((category) (title . "プログラミングを行なう人") (ext . "org") (updated . "2013-03-27") (created . "nil-nil-nil") (path . "/Users/Altech/Notes/プログラミングを行なう人.org")) ((category) (title . "Emacsメモツール") (ext . "org") (updated . "2013-03-26") (created . "2013-03-26") (path . "/Users/Altech/Notes/Emacsメモツール.org")) ((category) (title . "test") (ext . "md") (updated . "2013-03-22") (created . "2013-03-22") (path . "/Users/Altech/Notes/test.md")) ((category) (title . "Scalaまとめ") (ext . "org") (updated . "2013-03-22") (created . "2013-03-22") (path . "/Users/Altech/Notes/Scalaまとめ.org")) ((category) (title . "OAuthの仕組み") (ext . "md") (updated . "2013-03-22") (created . "2013-03-22") (path . "/Users/Altech/Notes/OAuthの仕組み.md")) ((category) (title . "ファイルシステム実装") (ext . "md") (updated . "2013-02-14") (created . "2013-02-14") (path . "/Users/Altech/Notes/ファイルシステム実装.md")) ((category) (title . "Hive勉強会資料") (ext . "md") (updated . "2013-02-09") (created . "2013-02-09") (path . "/Users/Altech/Notes/Hive勉強会資料.md")) ((category) (title . "旅行調査") (ext . "md") (updated . "2013-01-30") (created . "2013-01-30") (path . "/Users/Altech/Notes/旅行調査.md")) ((category) (title . "読書メーター代替") (ext . "md") (updated . "2012-12-24") (created . "2012-12-24") (path . "/Users/Altech/Notes/読書メーター代替.md")) ((category) (title . "数理計画法") (ext . "md") (updated . "2012-10-16") (created . "2012-10-16") (path . "/Users/Altech/Notes/数理計画法.md")) ((category) (title . "パターン認識の応用例") (ext . "md") (updated . "2012-10-12") (created . "nil-nil-nil") (path . "/Users/Altech/Notes/パターン認識の応用例.md")) ((category) (title . "コンピュータプログラミングの概念・技法・モデル") (ext . "org") (updated . "2012-05-15") (created . "nil-nil-nil") (path . "/Users/Altech/Notes/コンピュータプログラミングの概念・技法・モデル.org")))
+    notes ; => 
     (let* ((table (mapcar (lambda (notes) (mapcar 'cdr (list (assq 'updated notes) (assq 'ext notes) (assq 'title notes)))) notes)) (column-width (ever-calc-column-width table)))
-      table ; => (("2013-04-01" "org" "ekmett") ("2013-03-27" "org" "何でもリスト") ("2013-03-27" "org" "プログラミングを行なう人") ("2013-03-26" "org" "Emacsメモツール") ("2013-03-22" "md" "test") ("2013-03-22" "org" "Scalaまとめ") ("2013-03-22" "md" "OAuthの仕組み") ("2013-02-14" "md" "ファイルシステム実装") ("2013-02-09" "md" "Hive勉強会資料") ("2013-01-30" "md" "旅行調査") ("2012-12-24" "md" "読書メーター代替") ("2012-10-16" "md" "数理計画法") ("2012-10-12" "md" "パターン認識の応用例") ("2012-05-15" "org" "コンピュータプログラミングの概念・技法・モデル"))
+      table ; => 
       (setq table (cons '("Updated-at" "Ext" "Title") table))
       (let ((indented-table (mapcar (lambda (list)
 				      (mapcar (lambda (cell)
 						(ever-recenter-string (car cell) (cdr cell)))
 					      (zip list column-width)))
 				    table)))
-	(ever-add-faces-to-table (mapconcat (lambda (ls) (join ls "|")) indented-table "\n"))
-	) ; => 	" Updated-at | Ext | Title                                \n	 2013-04-01 | org | ekmett                              \n	  2013-03-27 | org | 何でもリスト                          \n	   2013-03-27 | org | プログラミングを行なう人                  \n	    2013-03-26 | org | Emacsメモツール                       \n	     2013-03-22 | md  | test                                \n	      2013-03-22 | org | Scalaまとめ                          \n	       2013-03-22 | md  | OAuthの仕組み                        \n	        2013-02-14 | md  | ファイルシステム実装                    \n		 2013-02-09 | md  | Hive勉強会資料                        \n		  2013-01-30 | md  | 旅行調査                              \n		   2012-12-24 | md  | 読書メーター代替                        \n		    2012-10-16 | md  | 数理計画法                            \n		     2012-10-12 | md  | パターン認識の応用例                    \n		      2012-05-15 | org | コンピュータプログラミングの概念・技法・モデル "
-      )))
+	(ever-add-faces-to-table (mapconcat (lambda (ls) (join ls "|")) indented-table "\n"))))))
 
 (defun ever-get-note-list ()
   ;; return list of notes
   ;; note is alist. the key of the alist is (category title ext updated created path).
   (let ((paths (ever-get-all-path-of-note)))
-    paths ; => ("/Users/Altech/Notes/Emacsメモツール.org" "/Users/Altech/Notes/Hive勉強会資料.md" "/Users/Altech/Notes/OAuthの仕組み.md" "/Users/Altech/Notes/Scalaまとめ.org" "/Users/Altech/Notes/ekmett.org" "/Users/Altech/Notes/test.md" "/Users/Altech/Notes/コンピュータプログラミングの概念・技法・モデル.org" "/Users/Altech/Notes/パターン認識の応用例.md" "/Users/Altech/Notes/ファイルシステム実装.md" "/Users/Altech/Notes/プログラミングを行なう人.org" "/Users/Altech/Notes/何でもリスト.org" "/Users/Altech/Notes/数理計画法.md" "/Users/Altech/Notes/旅行調査.md" "/Users/Altech/Notes/読書メーター代替.md")
     (mapcar (lambda (path)
-	      (let ((fi (shell-command-to-string (concat "/usr/bin/GetFileInfo -d " path))) (mtime (nth 5  (file-attributes path))) (ext (file-name-extension path)) (title (file-name-nondirectory (file-name-sans-extension path))))
-		(string-match "\\([0-9][0-9]\\)/\\([0-9][0-9]\\)/\\([0-9][0-9][0-9][0-9]\\)" fi) ; => 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65
+	      (let ((fi (shell-command-to-string (concat "/usr/bin/GetFileInfo -d " path))))
+		(string-match "\\([0-9][0-9]\\)/\\([0-9][0-9]\\)/\\([0-9][0-9][0-9][0-9]\\)" fi)
 		(list
 		 (cons 'category nil)
 		 (cons 'title (file-name-nondirectory (file-name-sans-extension path)))
 		 (cons 'ext (file-name-extension path))
 		 (cons 'updated (format-time-string "%Y-%m-%d" (nth 5 (file-attributes path))))
-		 (cons 'created (format "%s-%s-%s" (match-string 3 fi) (match-string 1 fi) (match-string 2 fi))) ; => (created . "2013-03-26"), (created . "2013-02-09"), (created . "2013-03-22"), (created . "2013-03-22"), (created . "2013-04-01"), (created . "2013-03-22"), (created . "nil-nil-nil"), (created . "nil-nil-nil"), (created . "2013-02-14"), (created . "nil-nil-nil"), (created . "nil-nil-nil"), (created . "2012-10-16"), (created . "2013-01-30"), (created . "2012-12-24")
+		 (cons 'created (format "%s-%s-%s" (match-string 3 fi) (match-string 1 fi) (match-string 2 fi)))
 		 (cons 'path path))
 		))
 	    paths)))
@@ -185,7 +182,6 @@
 (defun ever-get-all-path-of-note ()
   "example: return (test.md work/memo.org ...)"
   ;; [TODO] deal with nest directory
-  (directory-files ever-root-directroy t) ; => ("/Users/Altech/Notes/#test.ap#" "/Users/Altech/Notes/#test.pp#" "/Users/Altech/Notes/#tet.md#" "/Users/Altech/Notes/." "/Users/Altech/Notes/.#tet.md" "/Users/Altech/Notes/.." "/Users/Altech/Notes/.DS_Store" "/Users/Altech/Notes/Emacsメモツール.org" "/Users/Altech/Notes/Hive勉強会資料.md" "/Users/Altech/Notes/OAuthの仕組み.md" "/Users/Altech/Notes/Scalaまとめ.org" "/Users/Altech/Notes/ekmett.org" "/Users/Altech/Notes/test.md" "/Users/Altech/Notes/コンピュータプログラミングの概念・技法・モデル.org" "/Users/Altech/Notes/パターン認識の応用例.md" "/Users/Altech/Notes/ファイルシステム実装.md" "/Users/Altech/Notes/プログラミングを行なう人.org" "/Users/Altech/Notes/何でもリスト.org" "/Users/Altech/Notes/数理計画法.md" "/Users/Altech/Notes/旅行調査.md" "/Users/Altech/Notes/読書メーター代替.md")
   (ever-get-note-filter (directory-files ever-root-directroy t)))
 
 (defun ever-calc-column-width (tables)
