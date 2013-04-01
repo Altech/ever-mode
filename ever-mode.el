@@ -7,7 +7,7 @@
   (define-key ever-mode-map (kbd "d") 'ever-mark-delete)
   (define-key ever-mode-map (kbd "u") 'ever-unmark-delete)
   (define-key ever-mode-map (kbd "x") 'ever-mark-execute)
-  (define-key ever-mode-map (kbd "r") 'ever-rename-file)
+  (define-key ever-mode-map (kbd "r") 'ever-rename-note)
   )
 
 (defun ever-buffer-switch (buf)
@@ -91,7 +91,7 @@
        (erase-buffer)
        (insert "\n")
        (insert (ever-set-faces-to-table (mapconcat (lambda (ls) (join ls "|")) (ever-make-table lists column-width) "\n")))
-       (insert "\n\n\n [n]: next-note [p]: previous-note [a]: add-note [s]: search [q]: quit \n\n [d]: mark-delete [u]: unmark [x]: execute-mark\n")))))
+       (insert "\n\n\n [n]: next-note [p]: previous-note [a]: add-note [s]: search [q]: quit \n\n [r]: rename-note [d]: mark-delete [u]: unmark [x]: execute-mark\n")))))
 
 (defvar ever-delete-mark-list nil
   "Marking list in ever-notes. It is a list of filename.")
@@ -124,16 +124,12 @@
     (delete-file (expand-file-name file ever-root-directroy)))
   (ever-render-file-list))
 
-(defun ever-rename-file (title ext)
+(defun ever-rename-note (title ext)
   (interactive "sTitle: \nsExtension: ")
   (when (string-match "^.\\([^| ]+\\) +| \\([^| ]+\\) +| \\([^| ]+\\) +$" (thing-at-point 'line))
     (let* ((line (thing-at-point 'line)) (old-update-date (match-string 1 line)) (old-ext (match-string 2 line)) (old-title (match-string 3 line)))
-       (message "old:%s\n" (expand-file-name (concat old-title "." old-ext) ever-root-directroy)) ; => 
-       (message "new:%s\n" (expand-file-name (concat title "." ext) ever-root-directroy)) ; => 
-      (rename-file (expand-file-name (concat old-title "." old-ext) ever-root-directroy) (expand-file-name (concat title "." ext) ever-root-directroy)))
-    (ever-render-file-list)
-    ))
-
+      (ever-rename-note (expand-file-name (concat old-title "." old-ext) ever-root-directroy) (expand-file-name (concat title "." ext) ever-root-directroy)))
+    (ever-render-file-list)))
 
 (defun ever-notes-filter (list)
   (filter (lambda (s) (not (string-match "^\\..*" (file-name-nondirectory s)))) list))
@@ -178,16 +174,22 @@
 (provide 'ever-mode)
 
 
-;; start ever-mode
-(ever-notes)
-
+;; ;; start ever-mode
+;; (ever-notes)
 
 
 
 ;; [TODO]
+;; - split file (setting and debug-mode and boyd
 ;; - spotlight search
 ;; - improve search result 
 ;; - tag
 ;; - improve face
 ;; - help mode
+;; - abstract mode
 ;; - managements cursor
+;; - create-date using GetFileInfo
+;; - sort create-date / update-date
+;; - search by title
+;; - category by folder
+;; - change modify and create date
