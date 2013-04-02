@@ -35,11 +35,4 @@
     (split-window-horizontally))
   (other-window 1))
 
-;; [TEST]
-;; (zip '(1 2 5) '(3 4 5)) ; => ((1 . 3) (2 . 4) (5 . 5))
-;; (ever-recenter-string "test" 10) ; => " test       "
-;; (mapcar 'calc-char-width (string-to-list "あa")) ; => (2 1)
-;; (calc-string-width  "あa") ; => 3
-
-
 (provide 'ever-routines)
