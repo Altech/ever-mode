@@ -158,7 +158,7 @@
    (insert (concat
 	    "\n"
 	    (funcall (nth ever-view-type ever-view-type-list))
-	    "\n\n\n"
+	    "\n\n"
 	    " [n]: next note [p]: previous note [a]: add note\n\n"
 	    " [r]: edit title [c]: edit category [t]: edit tags\n\n"
 	    " [d]: mark to delete [u]: unmark to delete [x]: execute deletion\n\n"
@@ -301,11 +301,9 @@
        (progn ,@body)
        (setq buffer-read-only t))))
 
-;; general-purpose routines
-(require 'ever-routines)
-;; ADT of note
+(require 'ever-version)
 (require 'ever-note)
-
+(require 'ever-routines)
 (provide 'ever-mode)
 
 
