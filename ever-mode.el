@@ -134,7 +134,8 @@
   "Delete all the marked notes."
   (interactive)
   (dolist (file ever-delete-mark-list)
-    (delete-file path))
+    (delete-file file))
+  (setq ever-delete-mark-list nil)
   (ever-render-view)
   (goto-line 3))
 
