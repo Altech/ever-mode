@@ -15,6 +15,7 @@
   (define-key map (kbd "u") 'ever-unmark-delete)
   (define-key map (kbd "x") 'ever-mark-execute)
   (define-key map (kbd "q") 'ever-quit)
+  (define-key map (kbd "<f5>") 'ever-update)
   )
 
 ;; constants
@@ -66,6 +67,10 @@
     (ever-pop-buffer-of-current-note)
     (pop-to-buffer "*ever-notes*")
     (beginning-of-line)))
+
+(defun ever-update ()
+  (interactive)
+  (ever-render-view))
 
 (defun ever-quit ()
   "Close all notes and quit."
