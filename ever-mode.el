@@ -64,7 +64,8 @@
 (defun ever-goto-next-note ()
   "Go to the next note."
   (interactive)
-  (when (ever-exist-next-note)
+  (if (not (ever-exist-next-note))
+      (ever-goto-latest-note)
     (next-line)
     (ever-pop-buffer-of-current-note)
     (pop-to-buffer "*ever-notes*")
@@ -73,7 +74,8 @@
 (defun ever-goto-previous-note ()
   "Go to the previous note."
   (interactive)
-  (when (ever-exist-previous-note)
+  (if (not (ever-exist-previous-note))
+      (ever-goto-earliest-note)
     (previous-line)
     (ever-pop-buffer-of-current-note)
     (pop-to-buffer "*ever-notes*")
