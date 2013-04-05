@@ -3,18 +3,20 @@
 
 ;; commands
 (let ((map ever-mode-map))
-  (define-key map (kbd "t") 'ever-toggle-view)
-  (define-key map (kbd "n") 'ever-goto-next-note)
-  (define-key map (kbd "p") 'ever-goto-previous-note)
-  (define-key map (kbd "s") 'ever-search-notes)
-  (define-key map (kbd "a") 'ever-add-note)
-  (define-key map (kbd "r") 'ever-edit-title)
-  (define-key map (kbd "t") 'ever-edit-tags)
-  (define-key map (kbd "c") 'ever-edit-category)
-  (define-key map (kbd "d") 'ever-mark-delete)
-  (define-key map (kbd "u") 'ever-unmark-delete)
-  (define-key map (kbd "x") 'ever-mark-execute)
-  (define-key map (kbd "q") 'ever-quit)
+  (define-key map (kbd "t")   'ever-toggle-view)
+  (define-key map (kbd "n")   'ever-goto-next-note)
+  (define-key map (kbd "p")   'ever-goto-previous-note)
+  (define-key map (kbd "M-<") 'ever-goto-latest-note)
+  (define-key map (kbd "M->") 'ever-goto-earliest-note)
+  (define-key map (kbd "s")   'ever-search-notes)
+  (define-key map (kbd "a")   'ever-add-note)
+  (define-key map (kbd "r")   'ever-edit-title)
+  (define-key map (kbd "t")   'ever-edit-tags)
+  (define-key map (kbd "c")   'ever-edit-category)
+  (define-key map (kbd "d")   'ever-mark-delete)
+  (define-key map (kbd "u")   'ever-unmark-delete)
+  (define-key map (kbd "x")   'ever-mark-execute)
+  (define-key map (kbd "q")   'ever-quit)
   (define-key map (kbd "<f5>") 'ever-update)
   )
 
@@ -22,15 +24,24 @@
 (defconst ever-view-type-list '(ever-view-type-table
 				ever-view-type-summary))
 
+(defconst ever-view-regexp-list (list (cons 'ever-view-type-table   "^\\([ D]\\)\\([^| ]+\\) +| +\\([^| ]+\\) +| \\([^|\n]+\\) +")
+				      (cons 'ever-view-type-summary nil)))
+
 ;; variables
 (defvar ever-root-directroy nil
   "Directory which includes notes.")
 
-(defvar ever-view-type 0
+(defvar ever-view-type 'ever-view-type-table
   "Visual of the note list.")
 
 (defvar ever-delete-mark-list nil
   "An internal variable. Marking list in ever-notes. It is a list of filename.")
+
+;; library
+(require 'cl)
+(require 'ever-version)
+(require 'ever-note)
+(require 'ever-routines)
 
 ;; interactive command
 (defun ever-notes ()
@@ -64,6 +75,25 @@
   (interactive)
   (when (ever-exist-previous-note)
     (previous-line)
+    (ever-pop-buffer-of-current-note)
+    (pop-to-buffer "*ever-notes*")
+    (beginning-of-line)))
+
+(defun ever-goto-latest-note ()
+  "Go to the latest note."
+  (interactive)
+  (goto-char (point-min))
+  (when (re-search-forward (cdr (assq ever-view-type ever-view-regexp-list)))
+    (next-line)
+    (ever-pop-buffer-of-current-note)
+    (pop-to-buffer "*ever-notes*")
+    (beginning-of-line)))
+
+(defun ever-goto-earliest-note ()
+  "Go to the earliest-note note."
+  (interactive)
+  (goto-char (point-max))
+  (when (re-search-backward (cdr (assq ever-view-type ever-view-regexp-list)))
     (ever-pop-buffer-of-current-note)
     (pop-to-buffer "*ever-notes*")
     (beginning-of-line)))
@@ -152,14 +182,14 @@
   )
 
 (defun ever-render-view ()
-  (nth ever-view-type ever-view-type-list)
   (with-ever-notes
    (erase-buffer)
    (insert (concat
 	    "\n"
-	    (funcall (nth ever-view-type ever-view-type-list))
+	    (funcall ever-view-type)
 	    "\n\n"
 	    " [n]: next note [p]: previous note [a]: add note\n\n"
+	    " [M-<]: latest note [M->]: earliest note\n\n"
 	    " [r]: edit title [c]: edit category [t]: edit tags\n\n"
 	    " [d]: mark to delete [u]: unmark to delete [x]: execute deletion\n\n"
 	    " [s]: search contents [q]: quit\n"
@@ -235,47 +265,47 @@
 		    '(:background "black"))))
 
 (defun ever-exist-next-note ()
-  (cond ((eq ever-view-type 0)
-	 (next-line)
-	 (let ((result (ever-parse-note)))
-	   (previous-line)
-	   result
-	   ))
-	((eq ever-view-type 1)
-	 (error "unimplemented view-type.")
-	 )
-	(t (error "unexpected value ever-view-type"))))
+  (case ever-view-type
+    ('ever-view-type-table
+     (next-line)
+     (let ((result (ever-parse-note)))
+       (previous-line)
+       result))
+    ('ever-view-type-summary
+     (error "unimplemented view-type."))
+    (otherwise
+     (error "unexpected value ever-view-type"))))
 
 (defun ever-exist-previous-note ()
-  (cond ((eq ever-view-type 0)
+  (case ever-view-type
+    ('ever-view-type-table
 	 (previous-line)
 	 (let ((result (ever-parse-note)))
 	   (next-line)
-	   result
-	   ))
-	((eq ever-view-type 1)
-	 (error "unimplemented view-type.")
-	 )
-	(t (error "unexpected value ever-view-type"))))
+	   result))
+    ('ever-view-type-summary
+     (error "unimplemented view-type."))
+    (otherwise
+     (error "unexpected value ever-view-type"))))
 
 (defun ever-parse-note ()
-  (cond ((eq ever-view-type 0)
-	 (let ((str (thing-at-point 'line)))
-	   (if (or (not (string-match "^\\([ D]\\)\\([^| ]+\\) +| +\\([^| ]+\\) +| \\([^|\n]+\\) +" str)) (string-match " Ext " str))
-	       nil
-	     (let ((mark (match-string 1 str)) (updated (match-string 2 str)) (ext (match-string 3 str)) (rel_path_and_tags (remove "" (split-string (match-string 4 str) " "))))
-	       (list (cons 'category (butlast   (remove "" (split-string (car rel_path_and_tags) "/"))))
-		     (cons 'title    (car (last (remove "" (split-string (car rel_path_and_tags) "/")))))
-		     (cons 'tags     (cdr rel_path_and_tags))
-		     (cons 'updated  updated)
-		     (cons 'ext      ext)
-		     (cons 'created  nil)
-		     (cons 'path     (format "%s.%s" (car (last (remove "" (split-string (car rel_path_and_tags) "/")))) ext))
-		     (cons 'mark     mark)
-		     )))))
-	((eq ever-view-type 1)
-	 t
-	 )))
+  (case ever-view-type
+    ('ever-view-type-table
+     (let ((str (thing-at-point 'line)))
+       (if (or (not (string-match (cdr (assq 'ever-view-type-table ever-view-regexp-list)) str)) (string-match " Ext " str))
+	   nil
+	 (let ((mark (match-string 1 str)) (updated (match-string 2 str)) (ext (match-string 3 str)) (rel_path_and_tags (remove "" (split-string (match-string 4 str) " "))))
+	   (list (cons 'category (butlast   (remove "" (split-string (car rel_path_and_tags) "/"))))
+		 (cons 'title    (car (last (remove "" (split-string (car rel_path_and_tags) "/")))))
+		 (cons 'tags     (cdr rel_path_and_tags))
+		 (cons 'updated  updated)
+		 (cons 'ext      ext)
+		 (cons 'created  nil)
+		 (cons 'path     (format "%s.%s" (car (last (remove "" (split-string (car rel_path_and_tags) "/")))) ext))
+		 (cons 'mark     mark)
+		 )))))
+    ('ever-view-type-summary
+     nil)))
 
 (defun ever-edit-elements (elements)
   (let ((note (ever-parse-note)) (line (line-number-at-pos (point))))
@@ -301,9 +331,6 @@
        (progn ,@body)
        (setq buffer-read-only t))))
 
-(require 'ever-version)
-(require 'ever-note)
-(require 'ever-routines)
 (provide 'ever-mode)
 
 
@@ -314,10 +341,10 @@
 ;; (ever-notes)
 
 
-
-
 ;; [TODO]
+;; - bind M-< and M->
 ;; - add create-date
+;; - change update-date
 ;; - sort create-date / update-date
 ;; - abstract mode
 ;; - search by title, tag, category
