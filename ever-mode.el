@@ -315,8 +315,10 @@
 (defun ever-edit-elements (elements)
   (let ((note (ever-parse-note)) (line (line-number-at-pos (point))))
     (when note
-      (if (get-buffer  (ever-note-filename note))
-	  (kill-buffer (ever-note-filename note)))
+      (when (get-buffer (ever-note-filename note))
+	(with-current-buffer (ever-note-filename note)
+	  (save-buffer)
+	  (kill-this-buffer)))
       (make-directory (ever-note-dir (ever-update-note elements note)) t)
       (rename-file (ever-note-path note)
 		   (ever-note-path (ever-update-note elements note)))
@@ -326,6 +328,8 @@
 	  (delete-directory (ever-note-dir note)))
       (ever-render-view)
       (goto-line line)
+      (ever-pop-buffer-of-current-note)
+      (other-window 1) ;; [TODO] replace `with-??`
       )))
 
 (defmacro with-ever-notes (&rest body)
@@ -347,11 +351,10 @@
 
 
 ;; [TODO]
-;; - bind M-< and M->
 ;; - add create-date
 ;; - change update-date
 ;; - sort create-date / update-date
-;; - abstract mode
+;; - add summry mode
 ;; - search by title, tag, category
 ;; - spotlight search
 ;; - improve search result 
