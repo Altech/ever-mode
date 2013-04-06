@@ -148,7 +148,7 @@
   (with-ever-notes
    (let ((note (ever-parse-note)))
      (unless (string-equal "D" (ever-note-mark note))
-       (add-to-list 'ever-delete-mark-list (ever-note-path note))
+       (add-to-list 'ever-delete-mark-list note)
        (delete-char 1) (insert "D"))
      (beginning-of-line))))
 
@@ -158,15 +158,18 @@
   (with-ever-notes
    (let ((note (ever-parse-note)))
      (when (string-equal "D" (ever-note-mark note))
-       (setq ever-delete-mark-list (remove (ever-note-path note) ever-delete-mark-list))
+       (setq ever-delete-mark-list
+	     (remove-if (lambda (n) (ever-note-equal note n)) ever-delete-mark-list))
        (delete-char 1) (insert " "))
      (beginning-of-line))))
 
 (defun ever-mark-execute ()
   "Delete all the marked notes."
   (interactive)
-  (dolist (file ever-delete-mark-list)
-    (delete-file file))
+  (dolist (note ever-delete-mark-list)
+    (delete-file (ever-note-path note))
+    (when (get-buffer (ever-note-filename note))
+      (kill-buffer (ever-note-filename note))))
   (setq ever-delete-mark-list nil)
   (ever-render-view)
   (goto-line 3))
@@ -240,7 +243,7 @@
 		(not (string< (ever-note-updated n1) (ever-note-updated n2))))))
 
 (defun ever-get-note-filter (list)
-  (filter (lambda (s) (not (string-match "^[\\.#].*" (file-name-nondirectory s)))) list))
+  (remove-if-not (lambda (s) (not (string-match "^[\\.#].*" (file-name-nondirectory s)))) list))
 
 (defun ever-get-all-path-of-note ()
   (ever-get-all-path-of-note-iter (list ever-root-directroy) nil))

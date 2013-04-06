@@ -1,7 +1,4 @@
 
-(defun filter (p list)
-  (delq nil (mapcar (lambda (x) (if (funcall p x) x)) list)))
-
 (defun join (list sep)
   (mapconcat 'identity list sep))
 
