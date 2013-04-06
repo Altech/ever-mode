@@ -26,7 +26,7 @@
 (defun ever-update-note (new old)
   "Override old elements if duplicated"
   (let ((keys (mapcar 'car new)))
-    (append (filter (lambda (e) (not (member (car e) keys))) old) new)))
+    (append (remove-if-not (lambda (e) (not (member (car e) keys))) old) new)))
 (defun ever-note-equal (n1 n2)
   (string-equal (ever-note-path n1) (ever-note-path n2)))
   
