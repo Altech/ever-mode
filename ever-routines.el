@@ -32,4 +32,18 @@
     (split-window-horizontally))
   (other-window 1))
 
+(defun ever-list-index-of (proc list)
+  (ever-list-index-of-iter proc list 0)
+  )
+
+(defun ever-list-index-of-iter (proc list n)
+  (if (null list)
+      nil
+    (if (funcall proc (car list))
+	n
+      (ever-list-index-of-iter proc (cdr list) (1+ n)))))
+
+(defun ever-present (a b)
+  (if (null a) b a))
+
 (provide 'ever-routines)

@@ -48,19 +48,23 @@
 (defun ever-notes ()
   "Open the note list."
   (interactive)
-  (unless (get-buffer "*ever-notes*")
-    (with-current-buffer (generate-new-buffer "*ever-notes*")
-      (ever-mode)
-      (hl-line-mode)
-      (setq buffer-read-only t)))
-  (ever-notes-init-state)
-  (ever-render-view)
-  (other-window-or-split) ; patch
-  (switch-to-buffer "*ever-notes*")
-  (goto-char (point-min))
-  (goto-line 2)
-  (ever-goto-next-note)
-  )
+  (let ((former-filepath (buffer-file-name)))
+    (unless (get-buffer "*ever-notes*")
+      (with-current-buffer (generate-new-buffer "*ever-notes*")
+	(ever-mode)
+	(hl-line-mode)
+	(setq buffer-read-only t)))
+    (ever-notes-init-state)
+    (ever-render-view)
+    (other-window-or-split) ; patch
+    (switch-to-buffer "*ever-notes*")
+    (goto-char (point-min))
+    (goto-line (+ 2 (ever-present
+		     (ever-list-index-of (lambda (note) (string-equal former-filepath (ever-note-path note))) (ever-sort-note-list (ever-get-note-list)))
+		     0)))
+    (ever-goto-next-note)
+    ))
+
 
 (defun ever-goto-next-note ()
   "Go to the next note."
