@@ -59,12 +59,9 @@
     (other-window-or-split) ; patch
     (switch-to-buffer "*ever-notes*")
     (goto-char (point-min))
-    (goto-line (+ 2 (ever-present
-		     (ever-list-index-of (lambda (note) (string-equal former-filepath (ever-note-path note))) (ever-sort-note-list (ever-get-note-list)))
-		     0)))
+    (goto-line (+ 2 (or (ever-list-index-of (lambda (note) (string-equal former-filepath (ever-note-path note))) (ever-sort-note-list (ever-get-note-list))) 0)))
     (ever-goto-next-note)
     ))
-
 
 (defun ever-goto-next-note ()
   "Go to the next note."
