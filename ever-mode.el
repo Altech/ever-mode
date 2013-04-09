@@ -17,6 +17,7 @@
   (define-key map (kbd "u")   'ever-unmark-delete)
   (define-key map (kbd "x")   'ever-mark-execute)
   (define-key map (kbd "q")   'ever-quit)
+  (define-key map (kbd "RET") 'ever-quit-without-the-note)
   (define-key map (kbd "<f5>") 'ever-update)
   )
 
@@ -107,12 +108,23 @@
 (defun ever-quit ()
   "Close all notes and quit."
   (interactive)
-  (kill-buffer "*ever-notes*")  
   (dolist (note (ever-get-note-list))
     (when (get-buffer (ever-note-filename note))
       (kill-buffer (ever-note-filename note))))
+  (kill-buffer "*ever-notes*")
   (delete-window (other-window 0))
   (setq ever-delete-mark-list nil))
+
+(defun ever-quit-without-the-note ()
+  "Close the notes without the current note and quit."
+  (interactive)
+  (let ((the-note (ever-parse-note)))
+    (dolist (note (remove-if (lambda (note) (ever-note-equal note the-note)) (ever-get-note-list)))
+      (when (get-buffer (ever-note-filename note))
+	(kill-buffer (ever-note-filename note))))
+    (kill-buffer "*ever-notes*")
+    (delete-window (other-window 0))
+    (setq ever-delete-mark-list nil)))
 
 (defun ever-add-note (title ext)
   "Create a new note."
