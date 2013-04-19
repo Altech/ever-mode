@@ -69,9 +69,7 @@
   (if (not (ever-exist-next-note))
       (ever-goto-latest-note)
     (next-line)
-    (ever-pop-buffer-of-current-note)
-    (pop-to-buffer "*ever-notes*")
-    (beginning-of-line)))
+    (ever-pop-buffer-of-current-note)))
 
 (defun ever-goto-previous-note ()
   "Go to the previous note."
@@ -79,9 +77,7 @@
   (if (not (ever-exist-previous-note))
       (ever-goto-earliest-note)
     (previous-line)
-    (ever-pop-buffer-of-current-note)
-    (pop-to-buffer "*ever-notes*")
-    (beginning-of-line)))
+    (ever-pop-buffer-of-current-note)))
 
 (defun ever-goto-latest-note ()
   "Go to the latest note."
@@ -89,18 +85,14 @@
   (goto-char (point-min))
   (when (re-search-forward (cdr (assq ever-view-type ever-view-regexp-list)))
     (next-line)
-    (ever-pop-buffer-of-current-note)
-    (pop-to-buffer "*ever-notes*")
-    (beginning-of-line)))
+    (ever-pop-buffer-of-current-note)))
 
 (defun ever-goto-earliest-note ()
   "Go to the earliest-note note."
   (interactive)
   (goto-char (point-max))
   (when (re-search-backward (cdr (assq ever-view-type ever-view-regexp-list)))
-    (ever-pop-buffer-of-current-note)
-    (pop-to-buffer "*ever-notes*")
-    (beginning-of-line)))
+    (ever-pop-buffer-of-current-note)))
 
 (defun ever-update ()
   (interactive)
@@ -119,6 +111,9 @@
 (defun ever-quit-without-the-note ()
   "Close the notes without the current note and quit."
   (interactive)
+  ;; 
+  (ever-pop-buffer-of-current-note)
+  ;; main
   (let ((the-note (ever-parse-note)))
     (dolist (note (remove-if (lambda (note) (ever-note-equal note the-note)) (ever-get-note-list)))
       (when (get-buffer (ever-note-filename note))
@@ -218,7 +213,9 @@
     (with-current-buffer (pop-to-buffer nil)
 	(condition-case err
 	  (find-file (ever-note-path note))
-	(error (insert "Warning: File not found."))))))
+	(error (insert "Warning: File not found.")))))
+  (pop-to-buffer "*ever-notes*")
+  (beginning-of-line))
 
 (defun ever-view-type-table ()
   (let ((notes (ever-sort-note-list (ever-get-note-list))))
@@ -341,9 +338,7 @@
 	  (delete-directory (ever-note-dir note)))
       (ever-render-view)
       (goto-line line)
-      (ever-pop-buffer-of-current-note)
-      (other-window 1) ;; [TODO] replace `with-??`
-      )))
+      (ever-pop-buffer-of-current-note))))
 
 (defmacro with-ever-notes (&rest body)
   `(with-current-buffer "*ever-notes*"
