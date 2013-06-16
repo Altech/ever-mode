@@ -19,6 +19,8 @@
   (define-key map (kbd "q")   'ever-quit)
   (define-key map (kbd "RET") 'ever-quit-without-the-note)
   (define-key map (kbd "<f5>") 'ever-update)
+  (define-key map (kbd "C-n") 'ever-next-line)
+  (define-key map (kbd "C-p") 'ever-previous-line)
   )
 
 ;; constants
@@ -43,6 +45,7 @@
 (require 'ever-version)
 (require 'ever-note)
 (require 'ever-routines)
+(require 'ever-speedup)
 
 ;; interactive command
 (defun ever-notes ()
@@ -62,6 +65,14 @@
     (goto-line (+ 2 (or (ever-list-index-of (lambda (note) (string-equal former-filepath (ever-note-path note))) (ever-sort-note-list (ever-get-note-list))) 0)))
     (ever-goto-next-note)
     ))
+
+(defun ever-next-line ()
+  (interactive)
+  (next-line))
+
+(defun ever-previous-line ()
+  (interactive)
+  (previous-line))
 
 (defun ever-goto-next-note ()
   "Go to the next note."
@@ -202,6 +213,7 @@
 	    (funcall ever-view-type)
 	    "\n\n"
 	    " [n]: next note [p]: previous note [a]: add note\n\n"
+	    " [RET]: open the note on current line\n\n"
 	    " [M-<]: latest note [M->]: earliest note\n\n"
 	    " [r]: edit title [c]: edit category [t]: edit tags\n\n"
 	    " [d]: mark to delete [u]: unmark to delete [x]: execute deletion\n\n"
@@ -359,11 +371,14 @@
 
 
 ;; [TODO]
+;; - anything search style(search by title, tag, category)
+;; - remove the constraint in which we cannot use white space in title(or validates it).
+;; - improve the behavior of add note
+;; - add frmae-separeted style
 ;; - add create-date
 ;; - change update-date
 ;; - sort create-date / update-date
 ;; - add summry mode
-;; - search by title, tag, category
 ;; - spotlight search
 ;; - improve search result 
 ;; - improve face
