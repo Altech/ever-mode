@@ -144,6 +144,7 @@
       (erase-buffer)
       (save-buffer))
     (ever-render-view)
+    (select-window (get-buffer-window "*ever-notes*"))
     (goto-line 3)))
 
 (defun ever-edit-title (title ext)
