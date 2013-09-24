@@ -189,16 +189,18 @@
        (delete-char 1) (insert " "))
      (beginning-of-line))))
 
+;; [TODO] improve cursor position after execution.
 (defun ever-mark-execute ()
   "Delete all the marked notes."
   (interactive)
-  (dolist (note ever-delete-mark-list)
-    (delete-file (ever-note-path note))
-    (when (get-buffer (ever-note-filename note))
-      (kill-buffer (ever-note-filename note))))
-  (setq ever-delete-mark-list nil)
-  (ever-render-view)
-  (goto-line 3))
+  (let ((line (line-number-at-pos (point))))
+    (dolist (note ever-delete-mark-list)
+      (delete-file (ever-note-path note))
+      (when (get-buffer (ever-note-filename note))
+	(kill-buffer (ever-note-filename note))))
+    (setq ever-delete-mark-list nil)
+    (ever-render-view)
+    (goto-line line)))
 
 (defun ever-search-notes (regexp)
   "Grep the contents of the notes."
