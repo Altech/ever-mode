@@ -40,6 +40,9 @@
 (defvar ever-delete-mark-list nil
   "An internal variable. Marking list in ever-notes. It is a list of filename.")
 
+(defvar ever-original-window-configuration nil
+  "An internal variable. The original window configuration without ever-notes.")
+
 ;; library
 (require 'cl)
 (require 'ever-version)
@@ -51,6 +54,8 @@
 (defun ever-notes ()
   "Open the note list."
   (interactive)
+  (setq ever-original-window-configuration (current-window-configuration))
+  (delete-other-windows)
   (let ((former-filepath (buffer-file-name)))
     (unless (get-buffer "*ever-notes*")
       (with-current-buffer (generate-new-buffer "*ever-notes*")
@@ -117,7 +122,8 @@
       (kill-buffer (ever-note-filename note))))
   (kill-buffer "*ever-notes*")
   (delete-window (other-window 0))
-  (setq ever-delete-mark-list nil))
+  (setq ever-delete-mark-list nil)
+  (set-window-configuration ever-original-window-configuration))
 
 (defun ever-quit-without-the-note ()
   "Close the notes without the current note and quit."
