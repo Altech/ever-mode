@@ -268,15 +268,17 @@
   (remove-if-not (lambda (s) (not (string-match "^[\\.#].*" (file-name-nondirectory s)))) list))
 
 (defun ever-get-all-path-of-note ()
-  (ever-get-all-path-of-note-iter (list ever-root-directroy) nil))
+  (ever-get-all-path-of-note-loop (list ever-root-directroy) nil))
 
-(defun ever-get-all-path-of-note-iter (paths result)
-  (if paths
-      (let ((path (car paths)) (rest_paths (cdr paths)))
-	(if (car (file-attributes path))
-	    (ever-get-all-path-of-note-iter (append (ever-get-note-filter (directory-files path t)) rest_paths) result)
-	  (ever-get-all-path-of-note-iter rest_paths (cons path result))))
-    result))
+(defun ever-get-all-path-of-note-loop (paths result)
+  (while paths
+    (let ((path (car paths)) (rest_paths (cdr paths)))
+      (if (car (file-attributes path))
+	  (setq paths (append rest_paths (ever-get-note-filter (directory-files path t))))
+	(progn
+	  (setq paths rest_paths)
+	  (setq result (cons path result))))))
+  result)
 
 (defun ever-calc-column-width (tables)
   (mapcar (lambda (list) (apply 'max (mapcar 'calc-string-width list))) (transpose tables)))
